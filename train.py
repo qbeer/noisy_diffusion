@@ -34,13 +34,14 @@ def train(args):
         save_dir='./lightning_logs/')
 
     class LogPredictionsCallback(Callback):
-        def _sample(self, pl_module, T=100, L=10, eps=2e-5):
-            stds = torch.tensor([ 0.5995**i for i in range(L) ]).to(device='cuda:0')
+        def _sample(self, pl_module, T=100, L=10, sigma_1=1, sigma_10=0.01, eps=2e-5):
+            stds = torch.tensor([ sigma_1 * ( (sigma_10/sigma_1)**(1/(L-1)) )**i for i in range(L) ]).to(device='cuda:0')
             x = torch.rand(size=(16, 1, 32, 32)).to(device='cuda:0')
             for i in range(L):
                 alpha = torch.tensor(eps).to(device='cuda:0') * stds[i]**2 / stds[-1]**2 
                 for _ in range(T):
                     z = torch.randn(size=(16, 1, 32, 32)).to(device='cuda:0')
+                    x = torch.clip(x, 0., 1.)
                     x = x + alpha / 2. * pl_module(x, stds[i]) + torch.sqrt(alpha) * z
             return x.cpu().detach().numpy()
 
@@ -56,7 +57,7 @@ def train(args):
 
     checkpoint_callback = ModelCheckpoint(
         monitor='valid_loss',
-        dirpath='./lightning_logs/binary_mammo/',
+        dirpath='./lightning_logs/noisy_diffusion/',
         save_top_k=3,
         mode='min',
         filename='{epoch:02d}-{valid_loss:.3f}')
@@ -71,14 +72,15 @@ def train(args):
                             checkpoint_callback,
                             log_pred_callback
                          ],
-                         deterministic=True)
+                         deterministic=True,
+                         gradient_clip_val=.99, gradient_clip_algorithm="value")
 
     trainer.fit(model, train_dl, val_dl)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=128)
-    parser.add_argument('--epochs', type=int, default=10, required=False)
+    parser.add_argument('--epochs', type=int, default=100, required=False)
 
     args = parser.parse_args()
     train(args)

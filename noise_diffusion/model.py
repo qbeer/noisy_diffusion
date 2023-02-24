@@ -33,7 +33,7 @@ class Unet(pl.LightningModule):
 
     def __init__(
             self,
-            backbone='resnet18',
+            backbone='resnet50',
             backbone_kwargs=None,
             backbone_indices=None,
             decoder_use_batchnorm=True,
