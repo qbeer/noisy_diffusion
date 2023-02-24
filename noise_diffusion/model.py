@@ -4,12 +4,7 @@
 """
 
 import torch
-from torch import nn
-import numpy as np
 import pytorch_lightning as pl
-import torch.nn.functional as F
-from torchmetrics.regression import mse
-import wandb
 
 from timm import create_model
 from .unet import UnetDecoder
@@ -41,7 +36,7 @@ class Unet(pl.LightningModule):
             in_chans=1,
             num_classes=1,
             center=False,
-            norm_layer=nn.BatchNorm2d,
+            norm_layer=ConditionalInstanceNormPP,
     ):
         super().__init__()
         backbone_kwargs = backbone_kwargs or {}

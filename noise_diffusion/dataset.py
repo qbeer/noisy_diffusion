@@ -27,7 +27,7 @@ class NoisyMNIST(Dataset):
     # This returns given an index the i-th sample and label
     def __getitem__(self, idx):
         x, y = self.dataset[idx]
-        std_idx = torch.randint(0, 10, size=(1, ))
+        std_idx = torch.randint(0, 10, size=(1, ), dtype=torch.long)
         std = self.stds[std_idx]
         x = torch.clip(x, 0, 1)
         noisy_x = x + torch.randn(x.size()) * std
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     from pytorch_lightning import seed_everything
 
     seed_everything(42, workers=True)
-    
+
     train_ds = NoisyMNIST()
     samples = random.choices(train_ds, k=9)
     fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, figsize=(10, 10))
