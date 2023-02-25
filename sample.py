@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import imageio
+import imageio.v2 as imageio
 import matplotlib.pyplot as plt
 import torch
 from pytorch_lightning import seed_everything
+from tqdm import tqdm
 
 from noise_diffusion.model import Unet
 
@@ -12,7 +13,7 @@ seed_everything(42, workers=True)
 
 def run():
     model = Unet.load_from_checkpoint(
-        'lightning_logs/noisy_diffusion/epoch=245-valid_loss=52.303.ckpt',
+        'lightning_logs/noisy_diffusion/epoch=97-valid_loss=48.022.ckpt',
     )
     model = model.to(device='cuda:0')
     model = model.eval()
@@ -36,7 +37,7 @@ def run():
             for _ in range(T):
                 z = torch.randn(size=(16, 1, 32, 32)).to(device='cuda:0')
                 x = x + alpha / 2. * \
-                    model.forward(x, i) + torch.sqrt(alpha) * z
+                    model.forward(x, i) + torch.sqrt(alpha) / 2 * z  # trick?
                 x = torch.clip(x, 0., 1.)
                 samples.append(x.cpu().detach().numpy())
         return samples
@@ -44,28 +45,26 @@ def run():
     with torch.no_grad():
         samples = run_sampling()
 
-    for ind, sample in enumerate(samples):
-        fig, axes = plt.subplots(
-            4, 4, sharex=True, sharey=True, figsize=(16, 16),
-        )
-        axes = axes.flatten()
-        for img, ax in zip(sample, axes):
-            img = img.reshape(32, 32)
-            ax.imshow(img, vmin=0, vmax=1, interpolation=None)
-            ax.set_xticks([])
-            ax.set_yticks([])
-        fig.tight_layout()
-        plt.savefig(f'/tmp/{ind}.png', dpi=100)
-        plt.close()
-        del fig
-
-    filenames = [f'/tmp/{ind}.png' for ind in range(len(samples))]
     with imageio.get_writer(
-        '/path/to/movie.gif',
+        'samples/model_samples.gif',
         mode='I', duration=0.02,
     ) as writer:
-        for filename in filenames:
-            image = imageio.imread(filename)
+        for ind in tqdm(list(range(0, len(samples), 3))):
+            sample = samples[ind]
+            fig, axes = plt.subplots(
+                4, 4, sharex=True, sharey=True, figsize=(12, 12),
+            )
+            axes = axes.flatten()
+            for img, ax in zip(sample, axes):
+                img = img.reshape(32, 32)
+                ax.imshow(img, vmin=0, vmax=1, interpolation=None)
+                ax.set_xticks([])
+                ax.set_yticks([])
+            fig.tight_layout()
+            plt.savefig(f'/tmp/{ind}.png', dpi=15)
+            plt.close()
+
+            image = imageio.imread(f'/tmp/{ind}.png')
             writer.append_data(image)
 
 
