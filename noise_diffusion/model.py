@@ -6,9 +6,11 @@
 import torch
 import pytorch_lightning as pl
 
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 from timm import create_model
 from .unet import UnetDecoder
-from .conditional_instance_norm_pp import ConditionalInstanceNormPP
+from .conditional_instance_norm_pp import ConditionalInstanceNormPP, ConditionalInstanceNorm2d
 
 class Unet(pl.LightningModule):
     """Unet is a fully convolution neural network for image semantic segmentation
@@ -96,4 +98,6 @@ class Unet(pl.LightningModule):
 
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()
-        return torch.optim.Adam(self.parameters(), lr=1e-4)
+        opt = torch.optim.Adam(self.parameters(), lr=1e-4)
+        lr_schedulers = {"scheduler": ReduceLROnPlateau(opt, mode='min', threshold=0.01), "monitor": "valid_loss"}
+        return [opt], lr_schedulers

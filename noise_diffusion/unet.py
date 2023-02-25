@@ -12,14 +12,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .conditional_instance_norm_pp import ConditionalInstanceNormPP
+from .conditional_instance_norm_pp import ConditionalInstanceNormPP, ConditionalInstanceNorm2d
 
 class Conv2dBnAct(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, padding=0,
-                 stride=1, act_layer=nn.ReLU, norm_layer=ConditionalInstanceNormPP):
+                 stride=1, act_layer=nn.ReLU, norm_layer=None):
         super().__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride, padding=padding, bias=False)
-        if norm_layer == ConditionalInstanceNormPP:
+        if norm_layer in (ConditionalInstanceNormPP, ConditionalInstanceNorm2d):
             self.norm = norm_layer(out_channels, 10)
         else:
             self.norm = norm_layer(out_channels)
@@ -28,7 +28,7 @@ class Conv2dBnAct(nn.Module):
 
     def forward(self, x, y):
         x = self.conv(x)
-        if self.norm_layer == ConditionalInstanceNormPP:
+        if self.norm_layer in (ConditionalInstanceNormPP, ConditionalInstanceNorm2d):
             x = self.norm(x, y)
         else:
             x = self.norm(x)
@@ -37,7 +37,7 @@ class Conv2dBnAct(nn.Module):
 
 
 class DecoderBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, scale_factor=2.0, act_layer=nn.ReLU, norm_layer=ConditionalInstanceNormPP):
+    def __init__(self, in_channels, out_channels, scale_factor=2.0, act_layer=nn.ReLU, norm_layer=None):
         super().__init__()
         conv_args = dict(kernel_size=3, padding=1, act_layer=act_layer)
         self.scale_factor = scale_factor
@@ -65,8 +65,8 @@ class UnetDecoder(nn.Module):
             encoder_channels,
             decoder_channels=(256, 128, 64, 32, 16),
             final_channels=1,
-            norm_layer=ConditionalInstanceNormPP,
             center=False,
+            norm_layer=None
     ):
         super().__init__()
 
@@ -85,16 +85,6 @@ class UnetDecoder(nn.Module):
         for in_chs, out_chs in zip(in_channels, out_channels):
             self.blocks.append(DecoderBlock(in_chs, out_chs, norm_layer=norm_layer))
         self.final_conv = nn.Conv2d(out_channels[-1], final_channels, kernel_size=(1, 1))
-
-        self._init_weight()
-
-    def _init_weight(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                torch.nn.init.kaiming_normal_(m.weight)
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
 
     def forward(self, x: List[torch.Tensor], y: torch.Tensor):
         encoder_head = x[0]

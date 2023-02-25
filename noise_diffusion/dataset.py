@@ -5,13 +5,13 @@ import torchvision.transforms as T
 
 class NoisyMNIST(Dataset):
     # This loads the data and converts it, make data rdy
-    def __init__(self, train=True, std_10=0.01, std_1=1.0, L=10):
+    def __init__(self, train=True, std_1=1.0, std_10=0.01, L=10):
         if train:
-            transform = T.Compose([T.Resize(size=(32, 32)),
-                                   T.RandomApply([T.RandomCrop(size=(28, 28))], p=0.5),
-                                   T.RandomEqualize(p=0.5),
-                                   T.RandomAutocontrast(p=0.5),
-                                   T.RandomApply([T.RandomRotation(degrees=(-5, 5))], p=0.5),
+            transform = T.Compose([#T.Resize(size=(32, 32)),
+                                   #T.RandomApply([T.RandomCrop(size=(28, 28))], p=0.5),
+                                   #T.RandomEqualize(p=0.5),
+                                   #T.RandomAutocontrast(p=0.5),
+                                   #T.RandomApply([T.RandomRotation(degrees=(-5, 5))], p=0.5),
                                    T.Resize(size=(32, 32)),
                                    T.ToTensor()])
         else:

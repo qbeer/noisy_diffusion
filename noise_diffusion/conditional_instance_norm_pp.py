@@ -1,12 +1,43 @@
 import torch
 import torch.nn as nn
 
+class ConditionalInstanceNorm2d(nn.Module):
+    """
+        From: https://github.com/ermongroup/ncsn/blob/master/models/cond_refinenet_dilated.py#L48
+    """
+    def __init__(self, num_features, num_classes, bias=True):
+        super().__init__()
+        self.num_features = num_features
+        self.bias = bias
+        self.instance_norm = nn.InstanceNorm2d(num_features, affine=True, track_running_stats=False)
+        if bias:
+            self.embed = nn.Embedding(num_classes, num_features * 2)
+            self.embed.weight.data[:, :num_features].uniform_()  # Initialise scale at N(1, 0.02)
+            self.embed.weight.data[:, num_features:].zero_()  # Initialise bias at 0
+        else:
+            self.embed = nn.Embedding(num_classes, num_features)
+            self.embed.weight.data.uniform_()
+
+    def forward(self, x, y):
+        h = self.instance_norm(x)
+        if self.bias:
+            gamma, beta = self.embed(y).chunk(2, dim=-1)
+            out = gamma.view(-1, self.num_features, 1, 1) * h + beta.view(-1, self.num_features, 1, 1)
+        else:
+            gamma = self.embed(y)
+            out = gamma.view(-1, self.num_features, 1, 1) * h
+        return out
+
+"""
+    In theory this should be very similar in nature to the above example.
+"""
 class ConditionalInstanceNormPP(nn.Module):
-    def __init__(self, in_features, in_labels):
+    def __init__(self, in_features, in_labels, eps=1e-5):
         super().__init__()
         self.alpha = nn.Parameter(torch.ones(size=(in_labels, in_features, 1, 1)))
         self.beta = nn.Parameter(torch.zeros(size=(in_labels, in_features, 1, 1)))
         self.gamma = nn.Parameter(torch.ones(size=(in_labels, in_features, 1, 1)))
+        self.eps = eps
 
     def forward(self, x, y):
         """
@@ -26,6 +57,6 @@ class ConditionalInstanceNormPP(nn.Module):
 
         # [bs, F, 1, 1] * ( [bs, F, h, w] - [bs, F, 1, 1] ) / [bs, F, 1, 1] +
         # [bs, F, 1, 1] + [bs, F, 1, 1] * ( [bs, F, 1, 1] - [bs, 1, 1, 1] ) / [bs, 1, 1, 1]
-        out = alphas * ( x - mu ) / s + betas + gammas * ( mu - m ) / v # [bs, F, h, w]
+        out = alphas * ( x - mu ) / (s + self.eps) + betas + gammas * ( mu - m ) / (v + self.eps) # [bs, F, h, w]
 
         return out
