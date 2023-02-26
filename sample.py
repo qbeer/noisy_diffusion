@@ -46,8 +46,7 @@ def run(args):
                         'mnist' else 3, 32, 32,
                     ),
                 ).to(device='cuda:0')
-                x = x + alpha / 2. * \
-                    model.forward(x, i) + torch.sqrt(alpha) / 2 * z  # trick?
+                x += (alpha / 2. * model.forward(x, i) + torch.sqrt(alpha) * z)
                 x = torch.clip(x, 0., 1.)
                 samples.append(x.cpu().permute(0, 2, 3, 1).detach().numpy())
         return samples

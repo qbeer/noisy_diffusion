@@ -2,30 +2,38 @@
     Based on the implementation of Ross Wightman, modified by Alex Olar
     and integrated it with Pytorch Lightning
 """
+from __future__ import annotations
 
-import torch
 import pytorch_lightning as pl
-
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-
+import torch
 from timm import create_model
+
+from .conditional_instance_norm_pp import ConditionalInstanceNorm2d
 from .unet import UnetDecoder
-from .conditional_instance_norm_pp import ConditionalInstanceNormPP, ConditionalInstanceNorm2d
+# from .conditional_instance_norm_pp import ConditionalInstanceNormPP
+
 
 class Unet(pl.LightningModule):
-    """Unet is a fully convolution neural network for image semantic segmentation
+    """Unet is a fully convolution neural network
+       for image semantic segmentation
 
     Args:
-        encoder_name: name of classification model (without last dense layers) used as feature
+        encoder_name: name of classification model
+        (without last dense layers) used as feature
             extractor to build segmentation model.
-        encoder_weights: one of ``None`` (random initialization), ``imagenet`` (pre-training on ImageNet).
-        decoder_channels: list of numbers of ``Conv2D`` layer filters in decoder blocks
-        decoder_use_batchnorm: if ``True``, ``BatchNormalisation`` layer between ``Conv2D`` and ``Activation`` layers
+        encoder_weights: one of ``None`` (random initialization),
+        ``imagenet`` (pre-training on ImageNet).
+        decoder_channels: list of numbers of ``Conv2D`` layer
+        filters in decoder blocks
+        decoder_use_batchnorm: if ``True``, ``BatchNormalisation``
+        layer between ``Conv2D`` and ``Activation`` layers
             is used.
-        num_classes: a number of classes for output (output shape - ``(batch, classes, h, w)``).
+        num_classes: a number of classes for output
+        (output shape - ``(batch, classes, h, w)``).
         center: if ``True`` add ``Conv2dReLU`` block on encoder head
 
-    NOTE: This is based off an old version of Unet in https://github.com/qubvel/segmentation_models.pytorch
+    NOTE: This is based off an old version of Unet in
+    https://github.com/qubvel/segmentation_models.pytorch
     """
 
     def __init__(
@@ -38,15 +46,19 @@ class Unet(pl.LightningModule):
             in_chans=1,
             num_classes=1,
             center=False,
-            norm_layer=ConditionalInstanceNormPP,
+            norm_layer=ConditionalInstanceNorm2d,
     ):
         super().__init__()
         backbone_kwargs = backbone_kwargs or {}
-        # NOTE some models need different backbone indices specified based on the alignment of features
-        # and some models won't have a full enough range of feature strides to work properly.
+        # NOTE some models need different backbone indices specified
+        # based on the alignment of features
+        # and some models won't have a full enough
+        # range of feature strides to work properly.
         encoder = create_model(
-            backbone, features_only=True, out_indices=backbone_indices, in_chans=in_chans,
-            pretrained=True, **backbone_kwargs)
+            backbone, features_only=True,
+            out_indices=backbone_indices, in_chans=in_chans,
+            pretrained=True, **backbone_kwargs,
+        )
         encoder_channels = encoder.feature_info.channels()[::-1]
         self.encoder = encoder
 
@@ -73,12 +85,16 @@ class Unet(pl.LightningModule):
         noisy_x = batch['noisy_image']
 
         score = self.forward(noisy_x, y)
-        out = score + ( noisy_x - x ) / torch.square(stds.view(-1, 1, 1, 1))
+        out = score + (noisy_x - x) / torch.square(stds.view(-1, 1, 1, 1))
 
-        out = torch.sum(torch.square( out ), dim=(1, 2, 3), keepdim=False) # [bs]
+        out = torch.sum(
+            torch.square(out), dim=(
+                1, 2, 3,
+            ), keepdim=False,
+        )  # [bs]
         loss = .5 * torch.mean(torch.square(stds.view(-1)) * out)
 
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, sync_dist=True)
 
         return loss
 
@@ -89,15 +105,18 @@ class Unet(pl.LightningModule):
         noisy_x = batch['noisy_image']
 
         score = self.forward(noisy_x, y)
-        out = score + ( noisy_x - x ) / torch.square(stds.view(-1, 1, 1, 1))
+        out = score + (noisy_x - x) / torch.square(stds.view(-1, 1, 1, 1))
 
-        out = torch.sum(torch.square( out ), dim=(1, 2, 3), keepdim=False) # [bs]
+        out = torch.sum(
+            torch.square(out), dim=(
+                1, 2, 3,
+            ), keepdim=False,
+        )  # [bs]
         loss = .5 * torch.mean(torch.square(stds.view(-1)) * out)
 
-        self.log('valid_loss', loss)
+        self.log('valid_loss', loss, sync_dist=True)
 
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()
         opt = torch.optim.Adam(self.parameters(), lr=1e-4)
-        lr_schedulers = {"scheduler": ReduceLROnPlateau(opt, mode='min', threshold=0.01), "monitor": "valid_loss"}
-        return [opt], lr_schedulers
+        return opt
