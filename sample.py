@@ -24,7 +24,7 @@ def run(args):
     model = model.to(device='cuda:0')
     model = model.eval()
 
-    def run_sampling(T=50, L=10, sigma_1=1, sigma_10=0.01, eps=2e-5):
+    def run_sampling(T=100, L=10, sigma_1=1, sigma_10=0.01, eps=2e-5):
         samples = []
         x = torch.rand(
             size=(36, 1 if args.dataset == 'mnist' else 3, 32, 32),
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         '--dataset', choices=['mnist', 'cifar10'], default='mnist',
     )
     parser.add_argument(
-        '--backbone', choices=['resnet50', 'resnet101', 'resnet152'],
+        '--backbone', choices=['resnet50', 'resnet152'],
         default='resnet50',
     )
     parser.add_argument('--chkpt', required=True, type=str)

@@ -8,9 +8,8 @@ import pytorch_lightning as pl
 import torch
 from timm import create_model
 
-from .conditional_instance_norm_pp import ConditionalInstanceNorm2d
+from .conditional_instance_norm_pp import ConditionalInstanceNormPP
 from .unet import UnetDecoder
-# from .conditional_instance_norm_pp import ConditionalInstanceNormPP
 
 
 class Unet(pl.LightningModule):
@@ -46,7 +45,7 @@ class Unet(pl.LightningModule):
             in_chans=1,
             num_classes=1,
             center=False,
-            norm_layer=ConditionalInstanceNorm2d,
+            norm_layer=ConditionalInstanceNormPP,
     ):
         super().__init__()
         backbone_kwargs = backbone_kwargs or {}
