@@ -16,6 +16,7 @@ Here I use the MNIST dataset with a modified UNET network. The UNET decoder uses
 |:--------------:|:-----------:|
 |![img](samples/mnist_model_samples.gif "MNIST NCSN samples") | ![img](samples/cifar10_model_samples.gif "CIFAR10 NCSN samples") |
 
+```
 @misc{qbeer,
   author       = {Alex Olar},
   title        = {Noise Conditional Score Network},
@@ -24,3 +25,4 @@ Here I use the MNIST dataset with a modified UNET network. The UNET decoder uses
   year         = {2023},
   url          = {https://github.com/qbeer/noisy_diffusion}
 }
+```
